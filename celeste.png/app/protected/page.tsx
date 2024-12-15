@@ -1,38 +1,69 @@
-import FetchDataSteps from "@/components/tutorial/fetch-data-steps";
-import { createClient } from "@/utils/supabase/server";
-import { InfoIcon } from "lucide-react";
+'use client'
+import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
+import { SubmitButton } from "@/components/submit-button";
+import { FormEvent, useState, useEffect } from "react";
+import { generateStory } from "./actions";
+import { User } from "@supabase/supabase-js";
 
-export default async function ProtectedPage() {
-  const supabase = await createClient();
+export default function HomePage() {
+  const supabase = createClient();
+  const [errorMessage, setErrorMessage] = useState('');
+  const [user, setUser] = useState<User | null>(null);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        redirect("/sign-in");
+      }
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
-  if (!user) {
-    return redirect("/sign-in");
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    const formData = new FormData(formEvent.target as HTMLFormElement);
+    const story = formData.get('story')?.toString();
+    if (!story) {
+      setErrorMessage('Please enter a valid prompt');
+      return;
+    }
+    const response = await generateStory(story);
+    if (response instanceof Response) {
+      setErrorMessage('');
+    } else {
+      setErrorMessage('Encountered an error trying to generate your story');
+    }
   }
 
+  if (!user) return null;
+
+  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          This is a protected page that you can only see as an authenticated
-          user
-        </div>
+    <div className="flex-1 w-full flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
+      <div className="space-y-4">
+        <h1 className="text-4xl font-bold">
+          Welcome {userName}
+        </h1>
+        <h2 className="text-2xl text-gray-600">
+          Are you ready to create your next story?
+        </h2>
       </div>
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(user, null, 2)}
-        </pre>
-      </div>
-      <div>
-        <h2 className="font-bold text-2xl mb-4">Next steps</h2>
-        <FetchDataSteps />
-      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <textarea
+          name="story"
+          placeholder="Start writing your story here..."
+          className="w-full min-h-[200px] p-4 rounded-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        />
+        <SubmitButton pendingText="Submitting story...">
+          Submit Story
+        </SubmitButton>
+        {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+      </form>
     </div>
   );
 }
