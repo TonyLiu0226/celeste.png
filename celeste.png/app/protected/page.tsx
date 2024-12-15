@@ -5,11 +5,13 @@ import { SubmitButton } from "@/components/submit-button";
 import { FormEvent, useState, useEffect } from "react";
 import { generateStory } from "./actions";
 import { User } from "@supabase/supabase-js";
+import Notebook from "@/components/elements/notebook";
 
 export default function HomePage() {
   const supabase = createClient();
   const [errorMessage, setErrorMessage] = useState('');
   const [user, setUser] = useState<User | null>(null);
+  const [story, setStory] = useState('');
 
   useEffect(() => {
     const getUser = async () => {
@@ -43,7 +45,8 @@ export default function HomePage() {
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
+    <div className="flex-1 w-full flex flex-col md:flex-row gap-4 max-w-5xl mx-auto py-8 px-4">
+    <div className="flex-1 w-full md:w-1/2 flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
       <div className="space-y-4">
         <h1 className="text-4xl font-bold">
           Welcome {userName}
@@ -58,12 +61,17 @@ export default function HomePage() {
           name="story"
           placeholder="Start writing your story here..."
           className="w-full min-h-[200px] p-4 rounded-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          onChange={(e) => setStory(e.target.value)}
         />
         <SubmitButton pendingText="Submitting story...">
           Submit Story
         </SubmitButton>
         {errorMessage && <p className="text-red-500">{errorMessage}</p>}
       </form>
+    </div>
+    <div className="flex-1 w-full md:w-1/2 flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
+      <Notebook text={story}></Notebook>
+    </div>
     </div>
   );
 }
