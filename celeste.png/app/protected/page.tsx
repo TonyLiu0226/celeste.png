@@ -6,6 +6,7 @@ import { FormEvent, useState, useEffect } from "react";
 import { generateStory } from "./actions";
 import { User } from "@supabase/supabase-js";
 import Notebook from "@/components/elements/notebook";
+import ToggleModelParameters, { GenerationParameters, defaultParameters } from '@/components/elements/toggleModelParameters';
 
 export default function HomePage() {
   const supabase = createClient();
@@ -14,6 +15,8 @@ export default function HomePage() {
   const [story, setStory] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedPromptType, setSelectedPromptType] = useState('safe-story');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [parameters, setParameters] = useState<GenerationParameters>(defaultParameters);
 
   const defaultSafeStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: SFW';
   const defaultNSFWStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: NSFW';
@@ -45,7 +48,7 @@ export default function HomePage() {
     }
 
     try {
-      const response = await generateStory(prompt, system);
+      const response = await generateStory(prompt, system, parameters);
       let fullResponse = '';
       
       for await (const chunk of response) {
@@ -171,6 +174,24 @@ export default function HomePage() {
             placeholder="Start writing your story here..."
             className="w-full min-h-[200px] p-4 rounded-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           />
+        </div>
+
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+          >
+            <span>{showAdvanced ? '▼' : '▶'}</span>
+            Advanced Mode
+          </button>
+
+          {showAdvanced && (
+            <ToggleModelParameters 
+              parameters={parameters}
+              setParameters={setParameters}
+            />
+          )}
         </div>
 
         {!isGenerating ? (
