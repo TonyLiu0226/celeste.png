@@ -1,13 +1,27 @@
 'use server'
-export async function generateStory(story: string) {
+import { Ollama } from 'ollama'
+
+export async function generateStory(story: string, systemPrompt: string) {
     try {
-        const data = await fetch('http://localhost:11434', {
-            method: 'POST',
-            body: story,
+        const ollama = new Ollama({ host: 'http://localhost:11434' });
+        console.log(systemPrompt);
+        const response = await ollama.chat({
+            model: 'vanilj/mistral-nemo-12b-celeste-v1.9',
+            messages: [
+                {
+                    role: 'system',
+                    content: systemPrompt,
+                },
+                {
+                    role: 'user',
+                    content: story,
+                }
+            ],
+            format: 'string',
+            stream: true,
         });
-        const response = await data.json();
         return response;
     } catch (error) {
-        return {error: error};
+        throw new Error('Failed to generate story: ' + error);
     }
-  }
+}
