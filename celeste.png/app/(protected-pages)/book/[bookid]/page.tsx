@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { FormEvent, useState, useEffect } from "react";
-import { generateStory } from "./actions";
+import { generateStory } from "@/app/(protected-pages)/book/[bookid]/actions";
 import { User } from "@supabase/supabase-js";
 import Notebook from "@/components/elements/notebook";
 import ToggleModelParameters, { GenerationParameters, defaultParameters } from '@/components/elements/toggleModelParameters';

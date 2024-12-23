@@ -51,5 +51,5 @@ export const signInAction = async (formData: FormData) => {
     return {error: error.message};
   }
 
-  return redirect("/protected");
+  return redirect("/home");
 };
