@@ -7,6 +7,8 @@ import { generateStory } from "@/app/(protected-pages)/book/[bookid]/actions";
 import { User } from "@supabase/supabase-js";
 import Notebook from "@/components/elements/notebook";
 import ToggleModelParameters, { GenerationParameters, defaultParameters } from '@/components/elements/toggleModelParameters';
+import { NotebookProps } from '@/app/(protected-pages)/interfaces';
+import { NotebookChapter } from '@/app/(protected-pages)/interfaces';
 
 export default function HomePage() {
   const supabase = createClient();
@@ -17,6 +19,7 @@ export default function HomePage() {
   const [selectedPromptType, setSelectedPromptType] = useState('safe-story');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [parameters, setParameters] = useState<GenerationParameters>(defaultParameters);
+  const [currentChapter, setCurrentChapter] = useState<NotebookChapter>({text: '', chapter: 1, title: 'Chapter 1'});
 
   const defaultSafeStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: SFW';
   const defaultNSFWStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: NSFW';
@@ -32,6 +35,11 @@ export default function HomePage() {
     };
     getUser();
   }, []);
+
+  //modify notebookChapter object based on story changes
+  useEffect(() => {
+    setCurrentChapter({ text: story, chapter: 1, title: 'Chapter 1' });
+  }, [story]);
 
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
@@ -72,7 +80,7 @@ export default function HomePage() {
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
 
   return (
-    <div className="flex-1 w-full flex flex-col md:flex-row gap-4 max-w-5xl mx-auto py-8 px-4">
+    <div className="flex-1 w-full flex flex-col lg:flex-row gap-4 max-w-5xl mx-auto py-8 px-4">
     <div className="flex-1 w-full md:w-1/2 flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
       <div className="space-y-4">
         <h1 className="text-4xl font-bold">
@@ -207,7 +215,7 @@ export default function HomePage() {
       </form>
     </div>
     <div className="flex-1 w-full md:w-1/2 flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
-      <Notebook text={story}></Notebook>
+      <Notebook children={{ NotebookChapter: [currentChapter] }}></Notebook>
     </div>
     </div>
   );
