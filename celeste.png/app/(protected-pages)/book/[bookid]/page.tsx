@@ -11,6 +11,7 @@ import { NotebookProps } from '@/app/(protected-pages)/interfaces';
 import { NotebookChapter } from '@/app/(protected-pages)/interfaces';
 import { useParams } from 'next/navigation';
 import { Chapter, ChapterSegment } from './actions';
+import PDFExport from '@/components/elements/pdfExport';
 
 export default function BookPage() {
   const params = useParams();
@@ -343,15 +344,21 @@ export default function BookPage() {
           </div>
         </div>
 
-        {!isGenerating ? (
-          <SubmitButton>
-            Submit Story
-          </SubmitButton>
-        ) : (
-          <SubmitButton disabled>
-            Submitting Story...
-          </SubmitButton>
-        )}
+        <div className="flex gap-4">
+          {!isGenerating ? (
+            <SubmitButton>
+              Submit Story
+            </SubmitButton>
+          ) : (
+            <SubmitButton disabled>
+              Submitting Story...
+            </SubmitButton>
+          )}
+          <PDFExport 
+            chapters={chapters} 
+            bookTitle={`book-${bookId}`}
+          />
+        </div>
         {errorMessage && <p className="text-red-500">{errorMessage}</p>}
       </form>
     </div>
