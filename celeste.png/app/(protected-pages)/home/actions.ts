@@ -7,6 +7,11 @@ import { redirect } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Book } from "../interfaces";
 
+export interface PaginatedResponse<T> {
+    data: T[];
+    count: number;
+}
+
 export const addBookAction = async (title: string, userId: string) => {
     const supabase = await createClient();
     const { error } = await supabase.from("Books").insert({ id: uuidv4(), "Title": title, "UserId": userId });
@@ -27,11 +32,46 @@ export const deleteBookAction = async (id: string) => {
     return { success: "Book deleted" };
 };
 
-export const getAllBooks = async (userId: string): Promise<{ data: Book[], error: Error | null }> => {
+export const getAllBooks = async (
+    userId: string,
+    page: number = 1,
+    pageSize: number = 10
+): Promise<{ data: PaginatedResponse<Book>, error: Error | null }> => {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("Books").select("*").eq("UserId", userId).order('created_at', { ascending: false });
+    
+    // Calculate range for pagination
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+
+    // Get total count
+    const { count, error: countError } = await supabase
+        .from("Books")
+        .select('*', { count: 'exact', head: true })
+        .eq("UserId", userId);
+
+    if (countError) {
+        console.error("Error getting count:", countError);
+        return { data: { data: [], count: 0 }, error: countError };
+    }
+
+    // Get paginated data
+    const { data, error } = await supabase
+        .from("Books")
+        .select("*")
+        .eq("UserId", userId)
+        .order('created_at', { ascending: false })
+        .range(start, end);
+
     if (error) {
         console.error("Error loading books:", error);
+        return { data: { data: [], count: 0 }, error };
     }
-    return { data: data as Book[], error: error };
+
+    return { 
+        data: { 
+            data: data as Book[], 
+            count: count || 0 
+        }, 
+        error: null 
+    };
 };
