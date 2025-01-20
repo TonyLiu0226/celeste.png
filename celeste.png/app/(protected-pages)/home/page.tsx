@@ -130,7 +130,10 @@ const HomePage = () => {
                     <p className="text-center text-gray-500">No books found. Add a new book to get started.</p>
                 )}
                {currentBooks.length > 0 && currentBooks.map(book => (
-                   <div key={book.id} className="flex justify-between items-center border border-gray-300 rounded-md p-2">
+                   <div key={book.id} 
+                       className="flex justify-between items-center border border-gray-300 rounded-md p-2 cursor-pointer hover:bg-gray-100"
+                       onClick={() => router.push(`/book/${book.id}`)}
+                   >
                        <div className="flex flex-col">
                         <h3 className="text-lg font-semibold">{book.Title}</h3>
                         <h4 className="text-sm text-gray-500">created at: {new Date(book.created_at).toLocaleString('en-US', {
@@ -143,7 +146,13 @@ const HomePage = () => {
                             hour12: false
                         }).replace(',','')}</h4>
                        </div>
-                       <button onClick={() => openDeleteModal(book.id)} className="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors">
+                       <button 
+                           onClick={(e) => {
+                               e.stopPropagation(); // Prevent navigation when clicking delete
+                               openDeleteModal(book.id);
+                           }} 
+                           className="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition-colors"
+                       >
                            <TrashIcon className="w-5 h-5" />
                        </button>
                    </div>

@@ -3,23 +3,35 @@ import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { FormEvent, useState, useEffect } from "react";
-import { generateStory } from "@/app/(protected-pages)/book/[bookid]/actions";
+import { generateStory, fetchBookSegments, saveSegment } from "./actions";
 import { User } from "@supabase/supabase-js";
 import Notebook from "@/components/elements/notebook";
 import ToggleModelParameters, { GenerationParameters, defaultParameters } from '@/components/elements/toggleModelParameters';
 import { NotebookProps } from '@/app/(protected-pages)/interfaces';
 import { NotebookChapter } from '@/app/(protected-pages)/interfaces';
+import { useParams } from 'next/navigation';
+import { Chapter, ChapterSegment } from './actions';
 
-export default function HomePage() {
+export default function BookPage() {
+  const params = useParams();
+  const bookId = params.bookid as string;
   const supabase = createClient();
+
   const [errorMessage, setErrorMessage] = useState('');
+
   const [user, setUser] = useState<User | null>(null);
-  const [story, setStory] = useState('');
+
   const [isGenerating, setIsGenerating] = useState(false);
+
   const [selectedPromptType, setSelectedPromptType] = useState('safe-story');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [parameters, setParameters] = useState<GenerationParameters>(defaultParameters);
-  const [currentChapter, setCurrentChapter] = useState<NotebookChapter>({text: '', chapter: 1, title: 'Chapter 1'});
+  
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [currentChapterNo, setCurrentChapterNo] = useState<number>(1);
+  const [isNewChapter, setIsNewChapter] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string>('');
+  const [highestSequenceNo, setHighestSequenceNo] = useState<number>(0);
 
   const defaultSafeStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: SFW';
   const defaultNSFWStoryPrompt = 'You are a short story writer. Write a story based on prompt provided by user below. Mode: NSFW';
@@ -36,10 +48,34 @@ export default function HomePage() {
     getUser();
   }, []);
 
-  //modify notebookChapter object based on story changes
+  // Fetch chapters on load
   useEffect(() => {
-    setCurrentChapter({ text: story, chapter: 1, title: 'Chapter 1' });
-  }, [story]);
+    const loadChapters = async () => {
+      if (!bookId) return;
+      
+      const { data, error } = await fetchBookSegments(bookId);
+      if (error) {
+        console.error('Error fetching chapters:', error);
+        return;
+      }
+      if (data && data.length > 0) {
+        setChapters(data);
+        // Find highest sequence number across all chapters
+        const maxSeq = Math.max(...data.flatMap(chapter => 
+          chapter.segments.map(s => s.sequenceNo)
+        ), -1);
+        setHighestSequenceNo(maxSeq);
+        // Set current chapter to the last chapter
+        const maxChapterNo = Math.max(...data.map(c => c.chapterNo));
+        setCurrentChapterNo(maxChapterNo);
+      } else {
+        // If no chapters exist, start with chapter 1
+        setCurrentChapterNo(1);
+      }
+    };
+
+    loadChapters();
+  }, [bookId]);
 
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
@@ -47,7 +83,7 @@ export default function HomePage() {
     setIsGenerating(true);
     const formData = new FormData(formEvent.target as HTMLFormElement);
     const prompt = formData.get('prompt')?.toString();
-    const system = formData.get('system')?.toString() || defaultSafeStoryPrompt; // by default, we let the user write stories in SFW mode
+    const system = formData.get('system')?.toString() || defaultSafeStoryPrompt;
     
     if (!prompt) {
       setErrorMessage('Please enter a valid prompt');
@@ -59,20 +95,94 @@ export default function HomePage() {
       const response = await generateStory(prompt, system, parameters);
       let fullResponse = '';
       
-      for await (const chunk of response) {
-        if (chunk.message?.content) {
-          fullResponse += chunk.message.content;
-          setStory(fullResponse);
-        }
-      }
+      // Determine chapter number
+      const targetChapterNo = isNewChapter ? 
+        (chapters.length > 0 ? Math.max(...chapters.map(c => c.chapterNo)) + 1 : 1) : 
+        (currentChapterNo || 1); // Ensure we always have a valid chapter number
       
-      setErrorMessage('');
+      // Use the tracked highest sequence number + 1
+      const nextSequenceNo = highestSequenceNo + 1;
+      
+      try {
+        for await (const chunk of response) {
+          if (chunk.message?.content) {
+            fullResponse += chunk.message.content;
+            setStreamingContent(fullResponse);
+          }
+        }
+
+        // Save to database
+        const { error } = await saveSegment(
+          bookId,
+          fullResponse,
+          targetChapterNo,
+          nextSequenceNo,
+          user?.id || '',
+          isNewChapter ? `Chapter ${targetChapterNo}` : chapters.find(c => c.chapterNo === targetChapterNo)?.title || `Chapter ${targetChapterNo}`
+        );
+
+        if (error) throw new Error(error);
+
+        // Refetch all segments to get updated data and sequence numbers
+        const { data: refreshedData, error: refreshError } = await fetchBookSegments(bookId);
+        if (refreshError) throw new Error(refreshError);
+        
+        if (refreshedData) {
+          setChapters(refreshedData);
+          // Update highest sequence number
+          const maxSeq = Math.max(...refreshedData.flatMap(chapter => 
+            chapter.segments.map(s => s.sequenceNo)
+          ), -1);
+          setHighestSequenceNo(maxSeq);
+        }
+
+        setStreamingContent('');
+        setCurrentChapterNo(targetChapterNo);
+        setErrorMessage('');
+      } catch (streamError) {
+        throw new Error('Error during streaming: ' + streamError);
+      }
     } catch (error) {
+      console.error('Error in handleSubmit:', error);
       setErrorMessage(error instanceof Error ? error.message : 'An unknown error occurred');
-      setStory('');
+      setStreamingContent('');
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  // Prepare content for display
+  const displayContent = {
+    NotebookChapter: chapters.map(chapter => {
+      // Only include streaming content in the current chapter when not creating a new chapter
+      if (chapter.chapterNo === currentChapterNo && !isNewChapter) {
+        return {
+          text: [
+            ...chapter.segments.map(s => s.text),
+            ...(streamingContent ? [streamingContent] : [])
+          ].join('\n\n'),
+          chapter: chapter.chapterNo,
+          title: chapter.title
+        };
+      }
+      
+      return {
+        text: chapter.segments.map(s => s.text).join('\n\n'),
+        chapter: chapter.chapterNo,
+        title: chapter.title
+      };
+    })
+  };
+
+  console.log(displayContent);
+
+  // Add streaming content as new chapter ONLY if isNewChapter is true
+  if (streamingContent && isNewChapter) {
+    displayContent.NotebookChapter.push({
+      text: streamingContent,
+      chapter: chapters.length > 0 ? Math.max(...chapters.map(c => c.chapterNo)) + 1 : 1,
+      title: `Chapter ${chapters.length > 0 ? Math.max(...chapters.map(c => c.chapterNo)) + 1 : 1}`
+    });
   }
 
   if (!user) return null;
@@ -202,8 +312,21 @@ export default function HomePage() {
           )}
         </div>
 
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="new-chapter"
+              checked={isNewChapter}
+              onChange={(e) => setIsNewChapter(e.target.checked)}
+              className="mr-2"
+            />
+            <label htmlFor="new-chapter">Create New Chapter</label>
+          </div>
+        </div>
+
         {!isGenerating ? (
-          <SubmitButton >
+          <SubmitButton>
             Submit Story
           </SubmitButton>
         ) : (
@@ -215,7 +338,7 @@ export default function HomePage() {
       </form>
     </div>
     <div className="flex-1 w-full md:w-1/2 flex flex-col gap-4 max-w-5xl mx-auto py-8 px-4">
-      <Notebook children={{ NotebookChapter: [currentChapter] }}></Notebook>
+      <Notebook children={displayContent}></Notebook>
     </div>
     </div>
   );
