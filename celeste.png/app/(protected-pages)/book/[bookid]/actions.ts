@@ -2,8 +2,36 @@
 import { Ollama } from 'ollama'
 import { GenerationParameters } from '@/components/elements/toggleModelParameters';
 import { createClient } from "@/utils/supabase/server";
-import { NotebookChapter } from "../../interfaces";
 
+// ----------------
+// Interfaces
+// ----------------
+export interface ChapterSegment {
+    text: string;
+    sequenceNo: number;
+}
+
+export interface Chapter {
+    chapterNo: number;
+    title: string;
+    segments: ChapterSegment[];
+}
+
+export interface GenerationData {
+    Model: string;
+    SysPrompt: string;
+    UserPrompt: string;
+    TopK: number;
+    TopP: number;
+    MinP: number;
+    Temperature: number;
+    RepeatPenalty: number;
+    UserId: string;
+}
+
+// ----------------
+// API Routes
+// ----------------
 export async function generateStory(story: string, systemPrompt: string, parameters: GenerationParameters) {
     try {
         const ollama = new Ollama({ host: 'http://localhost:11434' });
@@ -39,17 +67,6 @@ export async function generateStory(story: string, systemPrompt: string, paramet
         // Re-throw the error so it can be caught by the client
         throw error;
     }
-}
-
-export interface ChapterSegment {
-    text: string;
-    sequenceNo: number;
-}
-
-export interface Chapter {
-    chapterNo: number;
-    title: string;
-    segments: ChapterSegment[];
 }
 
 export async function fetchBookSegments(bookId: string) {
@@ -115,6 +132,30 @@ export async function saveSegment(
 
     if (error) {
         console.error('Error saving segment:', error);
+        return { error: error.message };
+    }
+
+    return { success: true };
+}
+
+export async function saveGenerationData(data: GenerationData) {
+    const supabase = await createClient();
+    const { error } = await supabase
+        .from('Generations')
+        .insert({
+            Model: data.Model,
+            SysPrompt: data.SysPrompt,
+            UserPrompt: data.UserPrompt,
+            TopK: data.TopK,
+            TopP: data.TopP,
+            MinP: data.MinP,
+            Temperature: data.Temperature,
+            RepeatPenalty: data.RepeatPenalty,
+            UserId: data.UserId
+        });
+
+    if (error) {
+        console.error('Error saving generation data:', error);
         return { error: error.message };
     }
 

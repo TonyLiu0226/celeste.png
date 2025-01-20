@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { FormEvent, useState, useEffect } from "react";
-import { generateStory, fetchBookSegments, saveSegment } from "./actions";
+import { generateStory, fetchBookSegments, saveSegment, saveGenerationData } from "./actions";
 import { User } from "@supabase/supabase-js";
 import Notebook from "@/components/elements/notebook";
 import ToggleModelParameters, { GenerationParameters, defaultParameters } from '@/components/elements/toggleModelParameters';
@@ -111,7 +111,7 @@ export default function BookPage() {
           }
         }
 
-        // Save to database
+        // Save to segments database
         const { error } = await saveSegment(
           bookId,
           fullResponse,
@@ -122,6 +122,24 @@ export default function BookPage() {
         );
 
         if (error) throw new Error(error);
+
+        // Save generation data
+        const generationData = {
+          Model: "mn-celeste-12b",
+          SysPrompt: system,
+          UserPrompt: prompt,
+          TopK: parameters.top_k,
+          TopP: parameters.top_p,
+          MinP: parameters.min_p,
+          Temperature: parameters.temperature,
+          RepeatPenalty: parameters.repeat_penalty,
+          UserId: user?.id || ''
+        };
+
+        const { error: genError } = await saveGenerationData(generationData);
+        if (genError) {
+          console.error('Error saving generation data:', genError);
+        }
 
         // Refetch all segments to get updated data and sequence numbers
         const { data: refreshedData, error: refreshError } = await fetchBookSegments(bookId);
