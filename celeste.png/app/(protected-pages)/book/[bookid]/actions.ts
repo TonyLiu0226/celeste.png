@@ -47,7 +47,6 @@ export async function generateStory(story: string, systemPrompt: string, paramet
                     content: story,
                 }
             ],
-            format: 'string',
             stream: true,
             options: {
                 top_k: parameters.top_k,
@@ -160,4 +159,25 @@ export async function saveGenerationData(data: GenerationData) {
     }
 
     return { success: true };
+}
+
+export async function fetchGenerationData(bookId: string) {
+    try {
+        const supabase = await createClient();
+        
+        const { data, error } = await supabase
+            .from('generation_data')
+            .select('*')
+            .eq('book_id', bookId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        return { data, error: null };
+    } catch (error) {
+        console.error('Error fetching generation data:', error);
+        return { data: null, error };
+    }
 }

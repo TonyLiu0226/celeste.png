@@ -31,6 +31,20 @@ export default function Notebook({ children }: { children: NotebookProps }) {
         setCurrentPage(currentPage - 1);
         setIsAnimating(false);
       }, 300);
+    } else if (direction === 'first') {
+      setIsAnimating(true);
+      setAnimationDirection('prev');
+      setTimeout(() => {
+        setCurrentPage(0);
+        setIsAnimating(false);
+      }, 300);
+    } else if (direction === 'last') {
+      setIsAnimating(true);
+      setAnimationDirection('next');
+      setTimeout(() => {
+        setCurrentPage(bookContent.length - 1);
+        setIsAnimating(false);
+      }, 300);
     }
   };
 
@@ -94,29 +108,40 @@ export default function Notebook({ children }: { children: NotebookProps }) {
         </div>
 
         {/* Navigation buttons */}
-        <div className="flex justify-center items-center gap-8 mt-6">
+        <div className="flex justify-center items-center gap-4 mt-6">
+          <button
+            onClick={() => turnPage('first')}
+            disabled={currentPage === 0 || isAnimating}
+            className="p-2 rounded-full bg-amber-800 text-white hover:bg-amber-700 disabled:opacity-40 disabled:bg-amber-800 disabled:cursor-not-allowed flex items-center"
+            title="First Page"
+          >
+            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-6 h-6 -ml-4" />
+          </button>
           <button
             onClick={() => turnPage('prev')}
             disabled={currentPage === 0 || isAnimating}
-            className={`p-3 rounded-full transition-all ${
-              currentPage === 0 || isAnimating
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'text-amber-900 hover:bg-amber-900 hover:text-white'
-            }`}
+            className="p-2 rounded-full bg-amber-800 text-white hover:bg-amber-700 disabled:opacity-40 disabled:bg-amber-800 disabled:cursor-not-allowed"
+            title="Previous Page"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft className="w-6 h-6" />
           </button>
-
           <button
             onClick={() => turnPage('next')}
             disabled={currentPage === bookContent.length - 1 || isAnimating}
-            className={`p-3 rounded-full transition-all ${
-              currentPage === bookContent.length - 1 || isAnimating
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-amber-900 hover:bg-amber-900 hover:text-white'
-            }`}
+            className="p-2 rounded-full bg-amber-800 text-white hover:bg-amber-700 disabled:opacity-40 disabled:bg-amber-800 disabled:cursor-not-allowed"
+            title="Next Page"
           >
-            <ChevronRight size={24} />
+            <ChevronRight className="w-6 h-6" />
+          </button>
+          <button
+            onClick={() => turnPage('last')}
+            disabled={currentPage === bookContent.length - 1 || isAnimating}
+            className="p-2 rounded-full bg-amber-800 text-white hover:bg-amber-700 disabled:opacity-40 disabled:bg-amber-800 disabled:cursor-not-allowed flex items-center"
+            title="Last Page"
+          >
+            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-6 h-6 -ml-4" />
           </button>
         </div>
       </div>

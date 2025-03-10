@@ -9,6 +9,8 @@ import Link from "next/link";
 import "./globals.css";
 import Image from "next/image";
 import celesteLogo from "../app/images/celeste.png";
+import { Button } from "@/components/ui/button";
+import { Home } from "lucide-react";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -38,6 +40,13 @@ export default function RootLayout({
             <div className="flex-1 w-full flex flex-col gap-20 items-center">
               <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                 <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
+                  <div className="flex items-center gap-4">
+                    <Button asChild variant="ghost" size="icon">
+                      <Link href="/home" title="Home">
+                        <Home className="h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </div>
                   {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                 </div>
               </nav>
